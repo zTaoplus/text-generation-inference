@@ -15,7 +15,8 @@ from text_generation_server.models.opt import OPT, OPTSharded
 from text_generation_server.models.galactica import Galactica, GalacticaSharded
 from text_generation_server.models.santacoder import SantaCoder
 from text_generation_server.models.gpt_neox import GPTNeoxSharded
-from text_generation_server.models.t5 import T5Sharded
+from text_generation_server.models.glm import ChatGLM, ChatGLMShard
+
 
 try:
     if torch.cuda.is_available():
@@ -197,6 +198,22 @@ def get_model(
                 quantize=quantize,
                 trust_remote_code=trust_remote_code,
             )
+
+    elif model_type == "chatglm":
+        if sharded:
+            return ChatGLMShard(
+                model_id,
+                revision,
+                quantize=quantize,
+                trust_remote_code=trust_remote_code,
+            )
+
+        return ChatGLM(
+            model_id,
+            revision,
+            quantize=quantize,
+            trust_remote_code=trust_remote_code,
+        )
 
     if model_type in ["RefinedWeb", "RefinedWebModel"]:
         if sharded:

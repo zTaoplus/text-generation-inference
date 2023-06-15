@@ -1,5 +1,5 @@
 # Rust builder
-FROM lukemathwalker/cargo-chef:latest-rust-1.69 AS chef
+FROM registry.cn-hangzhou.aliyuncs.com/zt_gcr/cargo-chef:latest-rust-1.69 AS chef
 WORKDIR /usr/src
 
 FROM chef as planner
@@ -35,7 +35,7 @@ RUN cargo build --release
 
 # Python builder
 # Adapted from: https://github.com/pytorch/pytorch/blob/master/Dockerfile
-FROM debian:bullseye-slim as pytorch-install
+FROM registry.cn-hangzhou.aliyuncs.com/zt_gcr/debian:bullseye-slim as pytorch-install
 
 ARG PYTORCH_VERSION=2.0.0
 ARG PYTHON_VERSION=3.9
@@ -108,7 +108,7 @@ COPY server/Makefile-transformers Makefile
 RUN BUILD_EXTENSIONS="True" make build-transformers
 
 # Text Generation Inference base image
-FROM nvidia/cuda:11.8.0-base-ubuntu20.04 as base
+FROM registry.cn-hangzhou.aliyuncs.com/zt_gcr/cuda:11.8.0-base-ubuntu20.04 as base
 
 # Conda env
 ENV PATH=/opt/conda/bin:$PATH \
@@ -149,6 +149,7 @@ COPY server/Makefile server/Makefile
 RUN cd server && \
     make gen-server && \
     pip install -r requirements.txt && \
+    pip install -r requirements-glm.txt && \
     pip install ".[bnb, accelerate]" --no-cache-dir
 
 # Install benchmarker
