@@ -66,7 +66,7 @@ ARG TARGETPLATFORM
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN sed -i -E 's/(deb|security).debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+RUN sed -i -E 's/(deb|security).debian.org/mirrors.huaweicloud.com/g' /etc/apt/sources.list && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
@@ -142,7 +142,8 @@ ENV HUGGINGFACE_HUB_CACHE=/data \
 
 WORKDIR /usr/src
 
-RUN sed -i "s/archive.ubuntu.com/mirrors.aliyun.com/g" /etc/apt/sources.list && \
+RUN sed -i "s/archive.ubuntu.com/mirrors.huaweicloud.com/g" /etc/apt/sources.list && \
+    sed -i "s/security.ubuntu.com/mirrors.huaweicloud.com/g" /etc/apt/sources.list && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libssl-dev \
         ca-certificates \
