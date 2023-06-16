@@ -66,7 +66,8 @@ ARG TARGETPLATFORM
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i -E 's/(deb|security).debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list && \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         ccache \
@@ -81,6 +82,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
 # do not use linux/arm64 
 # i will downliad mamba file for x86_64 and copy to build
 COPY third-pkgs/Mambaforge-23.1.0-1-Linux-x86_64.sh mambaforge.sh
+COPY third-pkgs/.condarc ~/.condarc
 
 RUN chmod +x ./mambaforge.sh && \
     bash ./mambaforge.sh -b -p /opt/conda && \
@@ -140,7 +142,8 @@ ENV HUGGINGFACE_HUB_CACHE=/data \
 
 WORKDIR /usr/src
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i "s/archive.ubuntu.com/mirrors.aliyun.com/g" /etc/apt/sources.list && \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libssl-dev \
         ca-certificates \
         make \
