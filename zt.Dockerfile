@@ -91,9 +91,9 @@ RUN chmod +x ./mambaforge.sh && \
 
 # Install pytorch
 # On arm64 we exit with an error code
-RUN /opt/conda/bin/conda update -y conda &&  \
-    /opt/conda/bin/conda install -c "${INSTALL_CHANNEL}" -c "${CUDA_CHANNEL}" -y "python=${PYTHON_VERSION}" pytorch==$PYTORCH_VERSION "pytorch-cuda=$(echo $CUDA_VERSION | cut -d'.' -f 1-2)" \
-    /opt/conda/bin/conda clean -ya
+RUN /opt/conda/bin/conda update -y conda \
+    &&  /opt/conda/bin/conda install -c "${INSTALL_CHANNEL}" -c "${CUDA_CHANNEL}" -y "python=${PYTHON_VERSION}" pytorch==$PYTORCH_VERSION "pytorch-cuda=$(echo $CUDA_VERSION | cut -d'.' -f 1-2)" \
+    &&  /opt/conda/bin/conda clean -ya
 
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
