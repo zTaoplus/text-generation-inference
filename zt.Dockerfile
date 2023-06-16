@@ -89,12 +89,7 @@ RUN chmod +x ./mambaforge.sh && \
 
 # Install pytorch
 # On arm64 we exit with an error code
-RUN /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/ \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/ \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge/ \
-    /opt/conda/bin/conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/bioconda/ \
-    /opt/conda/bin/conda config --set show_channel_urls yes \
-    /opt/conda/bin/conda update -y conda &&  \
+RUN /opt/conda/bin/conda update -y conda &&  \
     /opt/conda/bin/conda install -c "${INSTALL_CHANNEL}" -c "${CUDA_CHANNEL}" -y "python=${PYTHON_VERSION}" pytorch==$PYTORCH_VERSION "pytorch-cuda=$(echo $CUDA_VERSION | cut -d'.' -f 1-2)" \
     /opt/conda/bin/conda clean -ya
 
