@@ -162,6 +162,7 @@ COPY --from=flash-att-builder /usr/src/flash-attention/csrc/rotary/build/lib.lin
 COPY --from=transformers-builder /usr/src/transformers /usr/src/transformers
 COPY --from=transformers-builder /usr/src/transformers/build/lib.linux-x86_64-cpython-39/transformers /usr/src/transformers/src/transformers
 
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 # Install transformers dependencies
 RUN cd /usr/src/transformers && pip install -e . --no-cache-dir && pip install einops --no-cache-dir
 

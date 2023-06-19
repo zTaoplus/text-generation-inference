@@ -230,7 +230,7 @@ class ChatGLMBatch(Batch):
     def filter(self, request_ids: List[int]) -> Optional["ChatGLMBatch"]:
         # NOTE: from rust request ids to get python cache in the python shard!!!
 
-        print("filter...")
+        # print("filter...")
         if len(request_ids) == 0:
             raise ValueError("Batch must have at least one request")
         if len(request_ids) == len(self):
@@ -378,7 +378,8 @@ class ChatGLMBatch(Batch):
             # 生成左边的padding tokens tensor
             # then cat left pad token and batch input ids to new batch input ids
             # 可能会造成的问题:
-            ### 1. 当最长的input ids 已经推理完毕, 但是可能其他批次比他小的input 还在推理. 导致, input ids 左侧会有太多的没用token, input ids length 长度未精简
+            # 1. 当最长的input ids 已经推理完毕, 但是可能其他批次比他小的input
+            # 还在推理. 导致, input ids 左侧会有太多的没用token, input ids length 长度未精简
             # 解决方案: 需要保存变量 记录当前batch中的padding length
             # 如果整个批次中最小的padding length 不为0  则往前添加的padding需要减少当前值. 若当前max length input length <  input length
             left_pad_tensor = torch.full(
@@ -389,8 +390,10 @@ class ChatGLMBatch(Batch):
                 1,
             ).to(batch.input_ids.device)
 
-            print(f"left tensor: {left_pad_tensor},shape:{left_pad_tensor.shape}")
-            print(f"input ids: {batch.input_ids},shape:{batch.input_ids.shape}")
+            # 更新 padding length?
+
+            # print(f"left tensor: {left_pad_tensor},shape:{left_pad_tensor.shape}")
+            # print(f"input ids: {batch.input_ids},shape:{batch.input_ids.shape}")
             input_ids.append(torch.cat([left_pad_tensor, batch.input_ids], dim=1))
 
             # input_ids[start_index:end_index] = batch.input_ids
@@ -401,7 +404,7 @@ class ChatGLMBatch(Batch):
             ) * len(batch)
 
             start_index = end_index
-        print(input_ids)
+        # print(input_ids)
         return cls(
             batch_id=batches[0].batch_id,
             requests=requests,
