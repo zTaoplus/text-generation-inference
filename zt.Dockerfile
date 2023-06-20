@@ -194,5 +194,7 @@ ENTRYPOINT ["./entrypoint.sh"]
 # Final image
 FROM base
 
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
+
 ENTRYPOINT ["text-generation-launcher"]
 CMD ["--json-output"]
