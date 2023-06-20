@@ -38,7 +38,6 @@ class InvalidScoreLogitsProcessor(LogitsProcessor):
 class ChatGLMNextTokenChooser(NextTokenChooser):
     def __init__(
         self,
-        # input_ids_seq_length:int,
         watermark=False,
         temperature=1,
         repetition_penalty=1,
@@ -91,10 +90,8 @@ class ChatGLMNextTokenChooser(NextTokenChooser):
         cls,
         pb: generate_pb2.NextTokenChooserParameters,
         device: torch.device,
-        # input_ids_seq_length:int
     ) -> "ChatGLMNextTokenChooser":
         return ChatGLMNextTokenChooser(
-            # input_ids_seq_length,
             watermark=pb.watermark,
             temperature=pb.temperature,
             repetition_penalty=pb.repetition_penalty,
@@ -228,9 +225,8 @@ class ChatGLMBatch(Batch):
 
     @tracer.start_as_current_span("filter")
     def filter(self, request_ids: List[int]) -> Optional["ChatGLMBatch"]:
-        # NOTE: from rust request ids to get python cache in the python shard!!!
+        """filter requests from rust client request ids"""
 
-        # print("filter...")
         if len(request_ids) == 0:
             raise ValueError("Batch must have at least one request")
         if len(request_ids) == len(self):
@@ -278,7 +274,6 @@ class ChatGLMBatch(Batch):
             total_remaining_decode_tokens += remaining_decode_tokens
 
         input_ids = self.input_ids[keep_indices]
-        # max token ?
         # requests ids * max input length + total_remaining_decode_tokens
         max_tokens = (
             len(request_ids) * (max_input_length) + total_remaining_decode_tokens
@@ -291,7 +286,7 @@ class ChatGLMBatch(Batch):
         self.prefix_offsets = prefix_offsets
         self.read_offsets = read_offsets
         # self.padding_lengths = padding_lengths
-        # self.next_token_choosers = next_token_choosers
+        self.next_token_choosers = next_token_choosers
         self.stopping_criterias = stopping_criterias
         self.max_input_length = max_input_length
         self.max_tokens = max_tokens
@@ -318,12 +313,8 @@ class ChatGLMBatch(Batch):
         # max_input_length_batch_ids = 0
 
         for ids, batch in enumerate(batches):
-            total_batch_size += len(batch)  # 最终整合之后这个batch input ids的高度.
-
+            total_batch_size += len(batch)
             max_input_length = max(max_input_length, batch.input_ids.shape[-1])
-            # 选择最小的pdding length
-            # min_paading_length = min(0,min(batch.padding_lengths))
-
             if ids == 0:
                 device = batch.input_ids.device
 
@@ -390,8 +381,6 @@ class ChatGLMBatch(Batch):
                 1,
             ).to(batch.input_ids.device)
 
-            # 更新 padding length?
-
             # print(f"left tensor: {left_pad_tensor},shape:{left_pad_tensor.shape}")
             # print(f"input ids: {batch.input_ids},shape:{batch.input_ids.shape}")
             input_ids.append(torch.cat([left_pad_tensor, batch.input_ids], dim=1))
@@ -404,7 +393,7 @@ class ChatGLMBatch(Batch):
             ) * len(batch)
 
             start_index = end_index
-        # print(input_ids)
+
         return cls(
             batch_id=batches[0].batch_id,
             requests=requests,
@@ -491,8 +480,6 @@ class ChatGLM(Model):
         # slice the attention mask to the correct shape
 
         # Results
-        # TODO: update the generations when the forward and logtis id chooser done
-        # so i do not use the prefill token
 
         generations: List[Generation] = []
 
@@ -536,7 +523,6 @@ class ChatGLM(Model):
             next_token_id_squeezed = next_tokens.squeeze()
             # print(f"input ids:{input_ids},next tokens:{next_tokens}")
 
-            # TODO: this value set to batch input ids.
             new_input_ids = torch.cat([input_ids, next_tokens])
 
             next_token_text, prefix_offset, read_offset = self.decode_token(
@@ -596,11 +582,7 @@ class ChatGLM(Model):
         if stopped:
             return generations, None
 
-        # update the batch values
-        # inputs_ids add next tokens
-        # all_next_tokens = torch.tensor([next_tokens_cat]).to(self.device)
         # print(f"inputs ids:{batch.input_ids}, shape:{batch.input_ids.shape} \n next tokens :{all_next_tokens},shape:{all_next_tokens.shape}")
-        # print(all_input_ids)
         batch.input_ids = torch.stack(all_input_ids).to(self.device)
 
         return generations, batch
