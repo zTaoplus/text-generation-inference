@@ -23,6 +23,7 @@ mod env_runtime;
 enum Quantization {
     Bitsandbytes,
     Gptq,
+    Awq,
 }
 
 impl std::fmt::Display for Quantization {
@@ -34,6 +35,9 @@ impl std::fmt::Display for Quantization {
             }
             Quantization::Gptq => {
                 write!(f, "gptq")
+            }
+            Quantization::Awq => {
+                write!(f, "awq")
             }
         }
     }
@@ -245,11 +249,6 @@ struct Args {
     #[clap(long, env)]
     disable_custom_kernels: bool,
 
-    /// Limit the CUDA available memory.
-    /// The allowed value equals the total visible memory multiplied by cuda-memory-fraction.
-    #[clap(default_value = "1.0", long, env)]
-    cuda_memory_fraction: f32,
-
     /// Outputs the logs in JSON format (useful for telemetry)
     #[clap(long, env)]
     json_output: bool,
@@ -304,7 +303,6 @@ fn shard_manager(
     disable_custom_kernels: bool,
     watermark_gamma: Option<f32>,
     watermark_delta: Option<f32>,
-    cuda_memory_fraction: f32,
     otlp_endpoint: Option<String>,
     status_sender: mpsc::Sender<ShardStatus>,
     shutdown: Arc<AtomicBool>,
@@ -373,12 +371,6 @@ fn shard_manager(
     envs.push(("MASTER_ADDR".into(), master_addr.into()));
     envs.push(("MASTER_PORT".into(), master_port.to_string().into()));
     envs.push(("NCCL_ASYNC_ERROR_HANDLING".into(), "1".into()));
-
-    // CUDA memory fraction
-    envs.push((
-        "CUDA_MEMORY_FRACTION".into(),
-        cuda_memory_fraction.to_string().into(),
-    ));
 
     // Safetensors load fast
     envs.push(("SAFETENSORS_FAST_GPU".into(), "1".into()));
@@ -783,7 +775,6 @@ fn spawn_shards(
         let disable_custom_kernels = args.disable_custom_kernels;
         let watermark_gamma = args.watermark_gamma;
         let watermark_delta = args.watermark_delta;
-        let cuda_memory_fraction = args.cuda_memory_fraction;
         thread::spawn(move || {
             shard_manager(
                 model_id,
@@ -801,7 +792,6 @@ fn spawn_shards(
                 disable_custom_kernels,
                 watermark_gamma,
                 watermark_delta,
-                cuda_memory_fraction,
                 otlp_endpoint,
                 status_sender,
                 shutdown,

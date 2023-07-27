@@ -107,7 +107,7 @@ class Weights:
         return self.get_partial_sharded(tensor_name, dim)
 
     def get_multi_weights_col(self, prefixes: List[str], quantize: str, dim: int):
-        if quantize == "gptq":
+        if quantize == "gptq" or quantize == "awq":
             try:
                 qweight = torch.cat(
                     [self.get_sharded(f"{p}.qweight", dim=1) for p in prefixes], dim=1
@@ -123,13 +123,17 @@ class Weights:
             scales = torch.cat(
                 [self.get_sharded(f"{p}.scales", dim=1) for p in prefixes], dim=1
             )
-            w = [self.get_tensor(f"{p}.g_idx") for p in prefixes]
-            for w2 in w[1:]:
-                torch.testing.assert_close(w2, w[0])
-            g_idx = w[0]
+            if quantize == "gptq":
+                w = [self.get_tensor(f"{p}.g_idx") for p in prefixes]
+                for w2 in w[1:]:
+                    torch.testing.assert_close(w2, w[0])
+                g_idx = w[0]
 
-            bits, groupsize = self._get_gptq_qparams()
-            weight = (qweight, qzeros, scales, g_idx, bits, groupsize, False)
+                bits, groupsize = self._get_gptq_qparams()
+                weight = (qweight, qzeros, scales, g_idx, bits, groupsize, False)
+            else:
+                bits, groupsize = self._get_awq_qparams()
+                weight = (qweight, qzeros, scales, bits, groupsize)
         else:
             w = [self.get_sharded(f"{p}.weight", dim=0) for p in prefixes]
             weight = torch.cat(w, dim=dim)
@@ -146,16 +150,7 @@ class Weights:
             if self.process_group.size() > 1:
                 g_idx = self.get_tensor(f"{prefix}.g_idx")
                 if g_idx is not None:
-                    if (
-                        not torch.equal(
-                            g_idx.cpu(),
-                            torch.tensor(
-                                [i // groupsize for i in range(g_idx.shape[0])],
-                                dtype=torch.int32,
-                            ),
-                        )
-                        and not (g_idx == 0).all()
-                    ):
+                    if not torch.equal(g_idx.cpu(), torch.tensor([i // groupsize for i in range(g_idx.shape[0])], dtype=torch.int32)) and not (g_idx == 0).all():
                         # Exllama implementation does not support row tensor parallelism with act-order, as
                         # it would require to reorder input activations that are split unto several GPUs
                         use_exllama = False
@@ -163,20 +158,17 @@ class Weights:
             try:
                 qweight = self.get_sharded(f"{prefix}.qweight", dim=0)
             except RuntimeError:
-                raise RuntimeError(
-                    "Cannot load `gptq` weight, make sure the model is already quantized, or quantize it with `text-generation-server quantize ORIGINAL_MODEL_ID NEW_MODEL_ID`"
-                )
+                raise RuntimeError("Cannot load `gptq` weight, make sure the model is already quantized, or quantize it with `text-generation-server quantize ORIGINAL_MODEL_ID NEW_MODEL_ID`")
+            
 
             from text_generation_server.utils.layers import HAS_EXLLAMA
-
             if use_exllama:
                 if not HAS_EXLLAMA:
-                    logger.warning(
-                        "Exllama GPTQ cuda kernels (which are faster) could have been used, but are not currently installed, try using BUILD_EXTENSIONS=True"
-                    )
+                    logger.warning("Exllama GPTQ cuda kernels (which are faster) could have been used, but are not currently installed, try using BUILD_EXTENSIONS=True")
                     use_exllama = False
                 else:
                     logger.info("Using exllama kernels")
+
 
             if use_exllama:
                 if groupsize >= 0:
@@ -185,9 +177,7 @@ class Weights:
                     qzeros = self.get_sharded(f"{prefix}.qzeros", dim=0)
                     scales = self.get_sharded(f"{prefix}.scales", dim=0)
                 else:
-                    raise RuntimeError(
-                        "Using exllama GPTQ kernel with groupsize<1 is not supported"
-                    )
+                    raise RuntimeError("Using exllama GPTQ kernel with groupsize<1 is not supported") 
                     # qzeros = self.get_tensor(f"{prefix}.qzeros")
                     # scales = self.get_tensor(f"{prefix}.scales")
 
@@ -204,6 +194,16 @@ class Weights:
                 g_idx = self.get_sharded(f"{prefix}.g_idx", dim=0)
 
             weight = (qweight, qzeros, scales, g_idx, bits, groupsize, use_exllama)
+        elif quantize == "awq":
+            bits, groupsize = self._get_awq_qparams()
+            
+            if bits != 4:
+                raise NotImplementedError("Awq Only 4-bit are supported for now.")
+            
+            qweight = self.get_sharded(f"{prefix}.qweight", dim=0)
+            qzeros = self.get_tensor(f"{prefix}.qzeros")
+            scales = self.get_tensor(f"{prefix}.scales")
+            weight = (qweight, qzeros, scales, bits, groupsize)
         else:
             weight = self.get_sharded(f"{prefix}.weight", dim=1)
         return weight
@@ -218,6 +218,21 @@ class Weights:
 
                 bits = int(os.getenv("GPTQ_BITS"))
                 groupsize = int(os.getenv("GPTQ_GROUPSIZE"))
+            except Exception:
+                raise e
+
+        return bits, groupsize
+    
+    def _get_awq_qparams(self) -> Tuple[int, int]:
+        try:
+            bits = self.get_tensor("awq_bits").item()
+            groupsize = self.get_tensor("awq_groupsize").item()
+        except (SafetensorError, RuntimeError) as e:
+            try:
+                import os
+
+                bits = int(os.getenv("AWQ_BITS"))
+                groupsize = int(os.getenv("AWQ_GROUPSIZE"))
             except Exception:
                 raise e
 

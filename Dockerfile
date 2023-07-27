@@ -108,6 +108,16 @@ COPY server/Makefile-flash-att-v2 Makefile
 # Build specific version of flash attention v2
 RUN make build-flash-attention-v2
 
+# Build awq cuda kernels
+FROM kernel-builder as awq-builder
+
+WORKDIR /usr/src
+
+COPY server/Makefile-awq Makefile
+
+# Build specific version of flash attention v2
+RUN make build-awq
+
 # Build Transformers exllama kernels
 FROM kernel-builder as exllama-kernels-builder
 
@@ -169,6 +179,10 @@ COPY --from=flash-att-builder /usr/src/flash-attention/csrc/rotary/build/lib.lin
 
 # Copy build artifacts from flash attention v2 builder
 COPY --from=flash-att-v2-builder /usr/src/flash-attention-v2/build/lib.linux-x86_64-cpython-39 /opt/conda/lib/python3.9/site-packages
+
+# Copy build artifacts from llm awq builder
+COPY --from=awq-builder /usr/src/llm-awq/awq/kernels/build/lib.linux-x86_64-cpython-39 /opt/conda/lib/python3.9/site-packages
+
 
 # Copy build artifacts from custom kernels builder
 COPY --from=custom-kernels-builder /usr/src/build/lib.linux-x86_64-cpython-39 /opt/conda/lib/python3.9/site-packages
