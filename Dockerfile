@@ -84,7 +84,7 @@ FROM pytorch-install as kernel-builder
 
 RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
         apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ninja-build \
+        ninja-build g++\
         && rm -rf /var/lib/apt/lists/*
 
 RUN /opt/conda/bin/conda install -c "nvidia/label/cuda-11.8.0"  cuda==11.8 && \
