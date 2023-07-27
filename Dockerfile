@@ -50,7 +50,8 @@ ARG TARGETPLATFORM
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         ccache \
@@ -81,7 +82,8 @@ RUN case ${TARGETPLATFORM} in \
 # CUDA kernels builder image
 FROM pytorch-install as kernel-builder
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         ninja-build \
         && rm -rf /var/lib/apt/lists/*
 
@@ -163,7 +165,8 @@ ENV HUGGINGFACE_HUB_CACHE=/data \
 
 WORKDIR /usr/src
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libssl-dev \
         ca-certificates \
         make \
@@ -211,7 +214,8 @@ COPY --from=builder /usr/src/target/release/text-generation-router /usr/local/bi
 # Install launcher
 COPY --from=builder /usr/src/target/release/text-generation-launcher /usr/local/bin/text-generation-launcher
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \ 
+        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         g++ \
         && rm -rf /var/lib/apt/lists/*
