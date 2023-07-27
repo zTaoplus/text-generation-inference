@@ -514,20 +514,17 @@ class CausalLM(Model):
         )
 
     def forward(
-        self, input_ids, attention_mask, position_ids, past_key_values: Optional = None
+        self, input_ids, past_key_values=None
     ) -> Tuple[torch.Tensor, List[Tuple[torch.Tensor, torch.Tensor]]]:
         # Model Forward
         kwargs = {
             "input_ids": input_ids,
-            "attention_mask": attention_mask,
             "past_key_values": past_key_values,
             "use_cache": True,
             "return_dict": True,
         }
-        if self.has_position_ids:
-            kwargs["position_ids"] = position_ids
 
-        outputs = self.model.forward(**kwargs)
+        outputs = self.model(**kwargs)
         return outputs.logits, outputs.past_key_values
 
     @tracer.start_as_current_span("generate_token")
@@ -536,11 +533,11 @@ class CausalLM(Model):
     ) -> Tuple[List[Generation], Optional[CausalLMBatch]]:
         # slice the attention mask to the correct shape
         attention_mask = batch.attention_mask[:, : -batch.padding_right_offset]
-
+        print(f"input ids:{batch.input_ids}")
         logits, past = self.forward(
             batch.input_ids,
-            attention_mask,
-            batch.position_ids,
+            # attention_mask,
+            # batch.position_ids,
             batch.past_key_values,
         )
 
@@ -572,6 +569,8 @@ class CausalLM(Model):
             all_input_ids,
         ) in enumerate(iterator):
             # Select next token
+            print(f"logits:{logits},shape:{logits.shape}")
+            print(f"logits slice:{logits[-1:, :]},shape:{logits[-1:, :].shape}")
             next_token_id, logprobs = next_token_chooser(
                 all_input_ids.view(1, -1), logits[-1:, :]
             )
@@ -605,10 +604,10 @@ class CausalLM(Model):
                         all_input_ids[-stopping_criteria.current_tokens :, 0]
                     )
                     # Get seed
-                    if isinstance(next_token_chooser.choice, Sampling):
-                        seed = next_token_chooser.choice.seed
-                    else:
-                        seed = None
+                    seed = None
+                    if hasattr(next_token_chooser, "choice"):
+                        if isinstance(next_token_chooser.choice, Sampling):
+                            seed = next_token_chooser.choice.seed
 
                     generated_text = GeneratedText(
                         output_text, stopping_criteria.current_tokens, reason, seed
