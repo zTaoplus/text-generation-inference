@@ -5,7 +5,7 @@ awq:
 
 build-awq: awq
 	cd llm-awq && git fetch && git checkout $(awq_commit)
-	cd llm-awq/awq/kernels && python setup.py install
+	cd llm-awq/awq/kernels && python setup.py build
 
 install-awq: build-awq
 	pip uninstall awq -y || true
