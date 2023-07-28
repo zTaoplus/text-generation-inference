@@ -50,8 +50,7 @@ ARG TARGETPLATFORM
 
 ENV PATH /opt/conda/bin:$PATH
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
         ccache \
@@ -82,9 +81,8 @@ RUN case ${TARGETPLATFORM} in \
 # CUDA kernels builder image
 FROM pytorch-install as kernel-builder
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ninja-build g++\
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ninja-build \
         && rm -rf /var/lib/apt/lists/*
 
 RUN /opt/conda/bin/conda install -c "nvidia/label/cuda-11.8.0"  cuda==11.8 && \
@@ -111,13 +109,13 @@ COPY server/Makefile-flash-att-v2 Makefile
 RUN make build-flash-attention-v2
 
 # # Build awq cuda kernels
-# FROM kernel-builder as awq-builder
+FROM kernel-builder as awq-builder
 
-# WORKDIR /usr/src
+WORKDIR /usr/src
 
-# COPY server/Makefile-awq Makefile
+COPY server/Makefile-awq Makefile
 
-# RUN make build-awq
+RUN make build-awq
 
 # Build Transformers exllama kernels
 FROM kernel-builder as exllama-kernels-builder
@@ -164,8 +162,7 @@ ENV HUGGINGFACE_HUB_CACHE=/data \
 
 WORKDIR /usr/src
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         libssl-dev \
         ca-certificates \
         make \
@@ -183,7 +180,7 @@ COPY --from=flash-att-builder /usr/src/flash-attention/csrc/rotary/build/lib.lin
 COPY --from=flash-att-v2-builder /usr/src/flash-attention-v2/build/lib.linux-x86_64-cpython-39 /opt/conda/lib/python3.9/site-packages
 
 # Copy awq builded so file from local file
-COPY awq_so/lib.linux-x86_64-cpython-39/ /opt/conda/lib/python3.9/site-packages
+COPY --from=awq-builder /usr/src/llm_awq/awq/kernels/build/lib.linux-x86_64-cpython-39/ /opt/conda/lib/python3.9/site-packages
 
 
 # Copy build artifacts from custom kernels builder
@@ -213,8 +210,7 @@ COPY --from=builder /usr/src/target/release/text-generation-router /usr/local/bi
 # Install launcher
 COPY --from=builder /usr/src/target/release/text-generation-launcher /usr/local/bin/text-generation-launcher
 
-RUN sed -i "s@http://\(deb\|security\).debian.org@http://mirrors.huaweicloud.com@g" /etc/apt/sources.list && \ 
-        apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         build-essential \
         g++ \
         && rm -rf /var/lib/apt/lists/*
